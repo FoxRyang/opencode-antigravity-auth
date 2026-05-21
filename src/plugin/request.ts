@@ -719,6 +719,35 @@ function generateSyntheticProjectId(): string {
   return `${adj}-${noun}-${randomPart}`;
 }
 
+function ensureDefaultGemini3ThinkingLevel(
+  requestPayload: Record<string, unknown>,
+  effectiveModel: string,
+  thinkingLevel?: string,
+): void {
+  if (!effectiveModel.toLowerCase().includes("gemini-3") || isImageGenerationModel(effectiveModel)) {
+    return;
+  }
+
+  const generationConfig =
+    requestPayload.generationConfig && typeof requestPayload.generationConfig === "object"
+      ? (requestPayload.generationConfig as Record<string, unknown>)
+      : {};
+  const thinkingConfig =
+    generationConfig.thinkingConfig && typeof generationConfig.thinkingConfig === "object"
+      ? (generationConfig.thinkingConfig as Record<string, unknown>)
+      : {};
+
+  if (typeof thinkingConfig.thinkingLevel !== "string") {
+    thinkingConfig.thinkingLevel = thinkingLevel ?? "low";
+  }
+  if (typeof thinkingConfig.includeThoughts !== "boolean") {
+    thinkingConfig.includeThoughts = true;
+  }
+
+  generationConfig.thinkingConfig = thinkingConfig;
+  requestPayload.generationConfig = generationConfig;
+}
+
 const STREAM_ACTION = "streamGenerateContent";
 
 /**
@@ -869,6 +898,7 @@ export function prepareAntigravityRequest(
           // Use stable session ID for signature caching across multi-turn conversations
           (req as any).sessionId = signatureSessionKey;
           stripInjectedDebugFromRequestPayload(req as Record<string, unknown>);
+          ensureDefaultGemini3ThinkingLevel(req as Record<string, unknown>, effectiveModel, tierThinkingLevel);
 
           if (isClaude) {
             // Step 0: Sanitize cross-model metadata (strips Gemini signatures when sending to Claude)

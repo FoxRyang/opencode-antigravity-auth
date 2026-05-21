@@ -69,7 +69,7 @@ const GEMINI_3_FLASH_REGEX = /^gemini-3(?:\.\d+)?-flash/i;
  * uses a "-preview" suffix. Confirmed against the antigravity (`agy`) and `gemini`
  * CLIs, which ship `gemini-3.1-pro`/`gemini-3.1-flash` (no `-preview`).
  */
-const GEMINI_DOTTED_MINOR_REGEX = /^gemini-3\.\d+/i;
+const GEMINI_DOTTED_MINOR_REGEX = /^gemini-3\.(?:[1-9]\d*)/i;
 
 // ANTIGRAVITY_ONLY_MODELS removed - all models now default to antigravity
 
@@ -353,7 +353,9 @@ export function resolveModelForHeaderStyle(
     // Dotted-minor generations (gemini-3.1+, gemini-3.5, ...) use bare names there.
     const hasPreviewSuffix = /-preview($|-)/i.test(transformedModel);
     const usesBareName = GEMINI_DOTTED_MINOR_REGEX.test(transformedModel);
-    if (!hasPreviewSuffix && !usesBareName) {
+    if (usesBareName && /-preview$/i.test(transformedModel)) {
+      transformedModel = transformedModel.replace(/-preview$/i, "");
+    } else if (!hasPreviewSuffix && !usesBareName) {
       transformedModel = `${transformedModel}-preview`;
     }
 

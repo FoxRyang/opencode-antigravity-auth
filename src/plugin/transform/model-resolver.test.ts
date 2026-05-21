@@ -362,9 +362,21 @@ describe("Issue #103: resolveModelForHeaderStyle", () => {
       expect(result.quotaPreference).toBe("gemini-cli");
     });
 
+    it("strips legacy preview suffix from gemini-3.1-pro for gemini-cli", () => {
+      const result = resolveModelForHeaderStyle("gemini-3.1-pro-preview", "gemini-cli");
+      expect(result.actualModel).toBe("gemini-3.1-pro");
+      expect(result.quotaPreference).toBe("gemini-cli");
+    });
+
     it("keeps gemini-3.1-pro-preview-customtools unchanged for gemini-cli", () => {
       const result = resolveModelForHeaderStyle("gemini-3.1-pro-preview-customtools", "gemini-cli");
       expect(result.actualModel).toBe("gemini-3.1-pro-preview-customtools");
+      expect(result.quotaPreference).toBe("gemini-cli");
+    });
+
+    it("keeps dotted 3.0 models on legacy preview suffix for gemini-cli", () => {
+      const result = resolveModelForHeaderStyle("gemini-3.0-pro-low", "gemini-cli");
+      expect(result.actualModel).toBe("gemini-3.0-pro-preview");
       expect(result.quotaPreference).toBe("gemini-cli");
     });
 
