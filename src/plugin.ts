@@ -43,6 +43,7 @@ import { clearAccounts, loadAccounts, saveAccounts, saveAccountsReplace } from "
 import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackoffMs, computeSoftQuotaCacheTtlMs } from "./plugin/accounts";
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker";
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config";
+import { applyOpencodeModelDefaults } from "./plugin/config/models";
 import { createSessionRecoveryHook, getRecoverySuccessToast } from "./plugin/recovery";
 import { checkAccountsQuota } from "./plugin/quota";
 import { initDiskSignatureCache } from "./plugin/cache";
@@ -1381,6 +1382,9 @@ export const createAntigravityPlugin = (providerId: string) => async (
   });
 
   return {
+    config: (cfg) => {
+      applyOpencodeModelDefaults(cfg, providerId);
+    },
     event: eventHandler,
     tool: {
       google_search: googleSearchTool,

@@ -34,6 +34,16 @@ export interface Provider {
   models?: Record<string, ProviderModel>;
 }
 
+export interface OpencodeProviderConfig {
+  models?: Record<string, ProviderModel>;
+  [key: string]: unknown;
+}
+
+export interface OpencodeConfig {
+  provider?: Record<string, OpencodeProviderConfig | undefined>;
+  [key: string]: unknown;
+}
+
 export interface LoaderResult {
   apiKey: string;
   fetch(input: RequestInfo, init?: RequestInit): Promise<Response>;
@@ -90,6 +100,7 @@ export interface PluginEventPayload {
 }
 
 export interface PluginResult {
+  config?: (config: OpencodeConfig) => void;
   auth: {
     provider: string;
     loader: (getAuth: GetAuth, provider: Provider) => Promise<LoaderResult | Record<string, unknown>>;
