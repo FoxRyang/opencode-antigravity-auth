@@ -40,7 +40,7 @@ import { EmptyResponseError } from "./plugin/errors";
 import { AntigravityTokenRefreshError, refreshAccessToken } from "./plugin/token";
 import { startOAuthListener, type OAuthListener } from "./plugin/server";
 import { clearAccounts, loadAccounts, saveAccounts, saveAccountsReplace } from "./plugin/storage";
-import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackoffMs, computeSoftQuotaCacheTtlMs } from "./plugin/accounts";
+import { AccountManager, type ModelFamily, type ManagedAccount, parseRateLimitReason, calculateBackoffMs, computeSoftQuotaCacheTtlMs } from "./plugin/accounts";
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker";
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config";
 import { applyOpencodeModelDefaults } from "./plugin/config/models";
@@ -1902,6 +1902,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
                     family,
                     headerStyle,
                     alternateStyle,
+                    account,
+                    config,
                   });
                   if (fallbackStyle) {
                     await showToast(
@@ -1921,6 +1923,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
                   family,
                   headerStyle,
                   alternateStyle,
+                  account,
+                  config,
                 });
                 if (fallbackStyle) {
                   const quotaName = headerStyle === "gemini-cli" ? "Gemini CLI" : "Antigravity";
@@ -2186,6 +2190,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
                           family,
                           headerStyle,
                           alternateStyle,
+                          account,
+                          config,
                         });
                         if (fallbackStyle) {
                           const safeModelName = model || "this model";
@@ -2205,6 +2211,8 @@ export const createAntigravityPlugin = (providerId: string) => async (
                           family,
                           headerStyle,
                           alternateStyle,
+                          account,
+                          config,
                         });
                         if (fallbackStyle) {
                           const safeModelName = model || "this model";
@@ -3386,6 +3394,8 @@ function resolveQuotaFallbackHeaderStyle(input: {
   family: ModelFamily;
   headerStyle: HeaderStyle;
   alternateStyle: HeaderStyle | null;
+  account?: ManagedAccount;
+  config?: AntigravityConfig;
 }): HeaderStyle | null {
   if (input.family !== "gemini") {
     return null;
@@ -3393,7 +3403,32 @@ function resolveQuotaFallbackHeaderStyle(input: {
   if (!input.alternateStyle || input.alternateStyle === input.headerStyle) {
     return null;
   }
+  // Refuse fallback INTO gemini-cli when it would 403. The gemini-cli path
+  // resolves to ANTIGRAVITY_DEFAULT_PROJECT_ID when the account has no
+  // projectId of its own, and that shared project is IAM-locked by Google
+  // (PERMISSION_DENIED on cloudaicompanion.*). Returning null lets the caller
+  // treat exhaustion as a normal rate-limit so opencode's native account
+  // rotation / wait handles it instead of hitting GCP with a guaranteed 403.
+  if (input.alternateStyle === "gemini-cli") {
+    if (isGeminiCliFallbackDisabled(input.config)) {
+      return null;
+    }
+    if (input.account && !accountHasUsableProject(input.account)) {
+      return null;
+    }
+  }
   return input.alternateStyle;
+}
+
+function isGeminiCliFallbackDisabled(config: AntigravityConfig | undefined): boolean {
+  return (config as (AntigravityConfig & { disable_gemini_cli_fallback?: boolean }) | undefined)
+    ?.disable_gemini_cli_fallback === true;
+}
+
+function accountHasUsableProject(account: ManagedAccount): boolean {
+  const userProjectId = account.parts?.projectId?.trim();
+  const managedProjectId = account.parts?.managedProjectId?.trim();
+  return !!userProjectId || !!managedProjectId;
 }
 
 type HeaderRoutingDecision = {

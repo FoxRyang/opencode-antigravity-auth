@@ -1,10 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { HeaderStyle, ModelFamily } from "./accounts";
+import type { HeaderStyle, ManagedAccount, ModelFamily } from "./accounts";
 
 type ResolveQuotaFallbackHeaderStyle = (input: {
   family: ModelFamily;
   headerStyle: HeaderStyle;
   alternateStyle: HeaderStyle | null;
+  account?: ManagedAccount;
+  config?: { disable_gemini_cli_fallback?: boolean } | Record<string, unknown>;
 }) => HeaderStyle | null;
 
 type GetHeaderStyleFromUrl = (
@@ -74,6 +76,77 @@ describe("quota fallback direction", () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it("blocks gemini-cli fallback when account has no usable projectId", () => {
+    const accountWithoutProject = {
+      parts: { refreshToken: "x" },
+    } as unknown as ManagedAccount;
+    const result = resolveQuotaFallbackHeaderStyle?.({
+      family: "gemini",
+      headerStyle: "antigravity",
+      alternateStyle: "gemini-cli",
+      account: accountWithoutProject,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("allows gemini-cli fallback when account has user-supplied projectId", () => {
+    const accountWithProject = {
+      parts: { refreshToken: "x", projectId: "my-gcp-project" },
+    } as unknown as ManagedAccount;
+    const result = resolveQuotaFallbackHeaderStyle?.({
+      family: "gemini",
+      headerStyle: "antigravity",
+      alternateStyle: "gemini-cli",
+      account: accountWithProject,
+    });
+
+    expect(result).toBe("gemini-cli");
+  });
+
+  it("allows gemini-cli fallback when account has cached managedProjectId", () => {
+    const accountWithManaged = {
+      parts: { refreshToken: "x", managedProjectId: "auto-onboarded" },
+    } as unknown as ManagedAccount;
+    const result = resolveQuotaFallbackHeaderStyle?.({
+      family: "gemini",
+      headerStyle: "antigravity",
+      alternateStyle: "gemini-cli",
+      account: accountWithManaged,
+    });
+
+    expect(result).toBe("gemini-cli");
+  });
+
+  it("blocks gemini-cli fallback when disable_gemini_cli_fallback config is true", () => {
+    const accountWithProject = {
+      parts: { refreshToken: "x", projectId: "my-gcp-project" },
+    } as unknown as ManagedAccount;
+    const result = resolveQuotaFallbackHeaderStyle?.({
+      family: "gemini",
+      headerStyle: "antigravity",
+      alternateStyle: "gemini-cli",
+      account: accountWithProject,
+      config: { disable_gemini_cli_fallback: true },
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("allows antigravity fallback even when account has no projectId", () => {
+    const accountWithoutProject = {
+      parts: { refreshToken: "x" },
+    } as unknown as ManagedAccount;
+    const result = resolveQuotaFallbackHeaderStyle?.({
+      family: "gemini",
+      headerStyle: "gemini-cli",
+      alternateStyle: "antigravity",
+      account: accountWithoutProject,
+    });
+
+    expect(result).toBe("antigravity");
   });
 });
 

@@ -286,6 +286,29 @@ export const AntigravityConfigSchema = z.object({
    * @default false
    */
   cli_first: z.boolean().default(false),
+
+  /**
+   * Hard-disable cross-pool fallback INTO the Gemini CLI quota.
+   *
+   * The Gemini CLI path requires a user-owned GCP project with the
+   * cloudaicompanion API enabled. Without one, the plugin falls back to a
+   * shared hardcoded project that Google has IAM-locked, causing
+   * `PERMISSION_DENIED` (`cloudaicompanion.instances.completeTask` /
+   * `cloudaicompanion.companions.generateChat`).
+   *
+   * Even with this flag off (default), the plugin will automatically skip the
+   * Gemini CLI fallback when the active account has no user-supplied
+   * `projectId` and no cached `managedProjectId`. Set this flag to `true` to
+   * force-disable the fallback for ALL accounts (e.g., to conserve personal
+   * GCP quota).
+   *
+   * When disabled, exhausting Antigravity quota propagates as a normal
+   * rate-limit error so that opencode's native account rotation / model
+   * fallback / rate-limit waiting handles it instead of hitting GCP.
+   *
+   * @default false
+   */
+  disable_gemini_cli_fallback: z.boolean().default(false),
   
   /**
    * Strategy for selecting accounts when making requests.
@@ -466,6 +489,7 @@ export const DEFAULT_CONFIG: AntigravityConfig = {
   max_rate_limit_wait_seconds: 300,
   quota_fallback: false,
   cli_first: false,
+  disable_gemini_cli_fallback: false,
   account_selection_strategy: 'hybrid',
   pid_offset_enabled: false,
   switch_on_first_rate_limit: true,
